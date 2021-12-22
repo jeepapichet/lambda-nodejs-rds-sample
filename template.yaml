@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  lambda-rds-pg
+
+  Sample SAM Template for lambda-rds-pg
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    
+Parameters:
+  Stage:
+    Type: String
+    Default: staging
+    Description: Parameter for getting the deployment stage
+
+Mappings:
+  StagesMap:
+    staging:
+      RDSSecretName: staging/lambda-rds-pg/ExampleDB
+      RDSSecretArn: arn:aws:secretsmanager:ap-southeast-1:000706671830:secret:staging/lambda-rds-pg/ExampleDB-GWSsWY
+    prod:
+      RDSSecretName: prod/lambda-rds-pg/ExampleDB
+      RDSSecretArn: arn:aws:secretsmanager:ap-southeast-1:000XXXXXXXX0:secret:prod/lambda-rds-pg/ExampleDB-XXXXXX
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello-world/
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy: 
+            SecretArn: !FindInMap
+              - StagesMap
+              - Ref: Stage
+              - RDSSecretArn
+      VpcConfig: 
+        SecurityGroupIds: 
+            - sg-06577b8ac23bc093e
+        SubnetIds:
+            - subnet-0ee4229d755a0dfac
+            - subnet-090f63348c8107400
+            - subnet-0d5c721b65c1c458c
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 8 * * ? *)
+            Enabled: True
+      Environment:
+        Variables:
+          RDS_SECRETS_NAME: !FindInMap
+            - StagesMap
+            - Ref: Stage
+            - RDSSecretName
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
